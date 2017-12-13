@@ -35,13 +35,13 @@ def initParameters(layers):
     for index in range(len(layers) - 1):
         l = index + 1
         W = np.ones((layers[index + 1], layers[index]))
-        b = np.ones((layers[index + 1]))
+        b = np.ones((layers[index + 1], 1))
 
         parameters[str(l)] = {'w':W, 'b':b}
     
     return parameters
 
-def forwardPropagation(X, layers, parameters, Y = None, lossPrintPerNum = 100):
+def forwardPropagation(X, layers, parameters, Y = None):
     '''
     前向传递缓存后向传递锁需的值
     '''
@@ -50,21 +50,24 @@ def forwardPropagation(X, layers, parameters, Y = None, lossPrintPerNum = 100):
     aPre = X
     for index in range(lnum):
         l = index + 1
-        W, b = parameters[str(l)]['W'], parameters[str(l)]['b']
-        z = np.dot(W, aPre) + b
+        w, b = parameters[str(l)]['w'], parameters[str(l)]['b']
+        z = np.dot(w, aPre) + b
         a = sigmoid(z) if lnum == l else relu(z)
         aPre = a
 
-        cache[str(l)] = {'w': W, 'b': b, 'z':z, 'a':a}
+        cache[str(l)] = {'w': w, 'b': b, 'z':z, 'a':a}
 
-        if(Y != None and index % lossPrintPerNum == 0 ):
-            print(str(lossCrossEntropy(a, Y)))
-
-    loss = lossCrossEntropy(aaPre, Y) if Y != None else None
+    loss = lossCrossEntropy(aPre, Y) if Y != None else None
 
     cache['0'] = {'w': None, 'a': X, }
     
     return cache,loss
+
+def lossCrossEntropy(a,y):
+    '''
+    交叉熵代价函数计算损失值
+    '''
+    return np.mean(-(y * np.log(a) + (1-y) * np.log(1-a)), axis = 1)
 
 def backPropagation(layers, Y, cache):
     '''
@@ -72,27 +75,33 @@ def backPropagation(layers, Y, cache):
     '''
     gradient = {}
     lnum = len(layers) - 1
-    daPre = (1.0 - Y)/(1.0 - cache[str(lnum)]['a']) - Y/cache[str(lnum)]['a']
+    da = (1.0 - Y)/(1.0 - cache[str(lnum)]['a']) - Y/cache[str(lnum)]['a']
     for index in reversed(range(lnum)):
         l = index + 1
         c = cache[str(l)]
         aPre = cache[str(l-1)]['a']
-        a, w, b = c['a'], c['w'], c['b']
-        dz = daPre * a * (1-a)
-        dw = dz * aPre
-        db = dz
-        daPre = dz * w
+        m = aPre.shape[1] * 1.0
+        a, w, b, z = c['a'], c['w'], c['b'], c['z']
+        dz = da * a * (1-a) if l == lnum else da
+        if(l == lnum):
+            dz[z<= 0] = 0
+        dw = np.dot(dz, aPre.T) / m 
+        db = np.mean(dz, axis = 1, keepdims = True)
+        da = np.dot(w.T, dz)
 
         gradient[str(l)] = {'dw':dw, 'db':db}
     
     return gradient
 
-
-def lossCrossEntropy(a,y):
-    '''
-    交叉熵代价函数计算损失值
-    '''
-    return np.mean(-(y * np.log(a) + (1-y) * np.log(1-a)), axis = 1)
+def updateParameter(layers, parameters, gradient, learningRate):
+    lnum = len(layers) - 1
+    for index in range(lnum):
+        l = index + 1
+        grad = gradient[str(l)]
+        dw, db = grad['dw'], grad['db']
+        parameters[str(l)]['w'] = parameters[str(l)]['w'] - learningRate * dw
+        parameters[str(l)]['b'] = parameters[str(l)]['b'] - learningRate * db
+    return parameters
 
 def multilayerBPTrain(X, Y, layers, learningRate, trainTime):
     '''
@@ -107,12 +116,28 @@ def multilayerBPTrain(X, Y, layers, learningRate, trainTime):
     '''
     lnum = len(layers) - 1
     parameters = initParameters(layers) #初始化参数
-    cache, loss = forwardPropagation(X = X, layers = layers, parameters = parameters, Y = Y) #前向传递cache数据
-     #反向梯度传递
+    for _ in range(trainTime):
+        cache, lose = forwardPropagation(X = X, layers = layers, parameters = parameters, Y = Y) #前向传递cache数据
+        gradient = backPropagation(layers, Y, cache) #反向梯度传递
+        parameters = updateParameter(layers, parameters, gradient, learningRate)
+        if(_%100 == 0):
+            print('lose = %s'%str(lose))
+    
+    return parameters
+
+def verify(layers, paramaters, X, Y):
+    cache = forwardPropagation(X, layers, paramaters, Y)
+    a = cache[len(layers) - 1]['a']
+    a[a >= 0.5] = 1
+    a[a <= 0.5] = 0
+    return np.mean(np.abs(a - Y))
 
 def train():
     (trainX,trainY,testX,testY) = loadData()
     trainX,trainY,testX,testY = trainX.reshape((-1,209)),trainY.reshape((1,209)),testX.reshape((-1,50)),testY.reshape((1,50))
-    parameters = multilayerBPTrain([trainX.shape[0], 6, 4, 2, trainY.shape[0]], learningRate = 0.001, trainTime = 10000)
+    layers = [trainX.shape[0], 6, 4, 2, trainY.shape[0]]
+    parameters = multilayerBPTrain(trainX, trainY, layers, learningRate = 0.001, trainTime = 10000)
+    accuracy = verify(layers, testX, testY)
+    print('accuracy = %s'%accuracy)
 
 train()
