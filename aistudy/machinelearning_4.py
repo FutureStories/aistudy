@@ -47,8 +47,7 @@ def forwardPropagation(X, layers, parameters, Y = None):
     cache = {}
     lnum = len(layers) - 1
     aPre = X
-    for index in range(lnum):
-        l = index + 1
+    for l in range(1, len(layers)):
         w, b = parameters[str(l)]['w'], parameters[str(l)]['b']
         z = np.dot(w, aPre) + b
         a = sigmoid(z) if lnum == l else relu(z)
@@ -75,8 +74,7 @@ def backPropagation(layers, Y, cache):
     gradient = {}
     lnum = len(layers) - 1
     da = (1.0 - Y)/(1.0 - cache[str(lnum)]['a']) - Y/cache[str(lnum)]['a']
-    for index in reversed(range(lnum)):
-        l = index + 1
+    for l in reversed(range(1, len(layers))):
         c = cache[str(l)]
         aPre = cache[str(l-1)]['a']
         m = aPre.shape[1] * 1.0
@@ -93,9 +91,7 @@ def backPropagation(layers, Y, cache):
     return gradient
 
 def updateParameter(layers, parameters, gradient, learningRate):
-    lnum = len(layers) - 1
-    for index in range(lnum):
-        l = index + 1
+    for l in range(1, len(layers)):
         grad = gradient[str(l)]
         dw, db = grad['dw'], grad['db']
         parameters[str(l)]['w'] = parameters[str(l)]['w'] - learningRate * dw
