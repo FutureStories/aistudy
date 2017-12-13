@@ -32,12 +32,11 @@ def initParameters(layers):
             数据结构:{'1':{'w':[[Array]], 'b':[[Array]]}, '2':{'w':[[Array]], 'b':[[Array]]}}
     '''
     parameters = {}
-    for index in range(len(layers) - 1):
-        l = index + 1
-        W = np.ones((layers[index + 1], layers[index]))
-        b = np.ones((layers[index + 1], 1))
+    for l in range(1, len(layers)):
+        w = np.random.randn(layers[l], layers[l-1]) / np.sqrt(layers[l-1])
+        b = np.zeros((layers[l], 1))
 
-        parameters[str(l)] = {'w':W, 'b':b}
+        parameters[str(l)] = {'w':w, 'b':b}
     
     return parameters
 
@@ -57,17 +56,17 @@ def forwardPropagation(X, layers, parameters, Y = None):
 
         cache[str(l)] = {'w': w, 'b': b, 'z':z, 'a':a}
 
-    loss = lossCrossEntropy(aPre, Y) if Y != None else None
+    lose = lossCrossEntropy(aPre, Y) if Y != None else None
 
     cache['0'] = {'w': None, 'a': X, }
     
-    return cache,loss
+    return cache,lose
 
-def lossCrossEntropy(a,y):
+def lossCrossEntropy(a, y):
     '''
     交叉熵代价函数计算损失值
     '''
-    return np.mean(-(y * np.log(a) + (1-y) * np.log(1-a)), axis = 1)
+    return np.squeeze(np.mean(-(y * np.log(a) + (1.0 - y) * np.log(1.0 - a))))
 
 def backPropagation(layers, Y, cache):
     '''
@@ -83,7 +82,7 @@ def backPropagation(layers, Y, cache):
         m = aPre.shape[1] * 1.0
         a, w, b, z = c['a'], c['w'], c['b'], c['z']
         dz = da * a * (1-a) if l == lnum else da
-        if(l == lnum):
+        if(l != lnum):
             dz[z<= 0] = 0
         dw = np.dot(dz, aPre.T) / m 
         db = np.mean(dz, axis = 1, keepdims = True)
@@ -114,7 +113,6 @@ def multilayerBPTrain(X, Y, layers, learningRate, trainTime):
 
     return: 每层神经网络的w和b
     '''
-    lnum = len(layers) - 1
     parameters = initParameters(layers) #初始化参数
     for _ in range(trainTime):
         cache, lose = forwardPropagation(X = X, layers = layers, parameters = parameters, Y = Y) #前向传递cache数据
@@ -126,18 +124,19 @@ def multilayerBPTrain(X, Y, layers, learningRate, trainTime):
     return parameters
 
 def verify(layers, paramaters, X, Y):
-    cache = forwardPropagation(X, layers, paramaters, Y)
-    a = cache[len(layers) - 1]['a']
+    cache, lose = forwardPropagation(X, layers, paramaters, Y)
+    a = cache[str(len(layers) - 1)]['a']
     a[a >= 0.5] = 1
-    a[a <= 0.5] = 0
-    return np.mean(np.abs(a - Y))
+    a[a < 0.5] = 0
+    return 1.0 - np.mean(np.abs(a - Y))
 
 def train():
     (trainX,trainY,testX,testY) = loadData()
-    trainX,trainY,testX,testY = trainX.reshape((-1,209)),trainY.reshape((1,209)),testX.reshape((-1,50)),testY.reshape((1,50))
+    trainX,trainY,testX,testY = trainX.reshape(209, -1).T,trainY.reshape(1, 209),testX.reshape(50, -1).T,testY.reshape(1, 50)
+    trainX, testX = trainX/255.0, testX/255.0
     layers = [trainX.shape[0], 6, 4, 2, trainY.shape[0]]
-    parameters = multilayerBPTrain(trainX, trainY, layers, learningRate = 0.001, trainTime = 10000)
-    accuracy = verify(layers, testX, testY)
+    parameters = multilayerBPTrain(trainX, trainY, layers, learningRate = 0.01, trainTime = 4000)
+    accuracy = verify(layers, parameters, trainX, trainY)
     print('accuracy = %s'%accuracy)
 
 train()
