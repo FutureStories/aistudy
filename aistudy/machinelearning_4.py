@@ -1,6 +1,8 @@
 # -*- coding: UTF-8 -*-
 import h5py
 import numpy as np
+import utility.drawtool as drawt
+import matplotlib.pyplot as plt
 
 def loadData():
     '''
@@ -42,7 +44,18 @@ def initParameters(layers):
 
 def forwardPropagation(X, layers, parameters, Y = None):
     '''
-    前向传递缓存后向传递锁需的值
+    前向传递
+    
+    X: 输入层
+    
+    layers: 网络结构
+            [100,8,4,1]代表两个隐藏层的神经网络
+            输入层有10个神经元，第一和第二隐藏层分别有8、4个神经元，输出层有1个神经元
+    
+    parameters: 保存了网络每一层的w、b值。
+                数据结构:{'1':{'w':[[Array]], 'b':[[Array]]}, '2':{'w':[[Array]], 'b':[[Array]]}}
+    
+    Y: 真实值
     '''
     cache = {}
     lnum = len(layers) - 1
@@ -70,6 +83,15 @@ def lossCrossEntropy(a, y):
 def backPropagation(layers, Y, cache):
     '''
     反向梯度传递
+
+    layers: 网络结构
+        [100,8,4,1]代表两个隐藏层的神经网络
+        输入层有10个神经元，第一和第二隐藏层分别有8、4个神经元，输出层有1个神经元
+    
+    Y: 真实值
+
+    cache: 前向传递的输出值
+
     '''
     gradient = {}
     lnum = len(layers) - 1
@@ -135,4 +157,21 @@ def train():
     accuracy = verify(layers, parameters, trainX, trainY)
     print('accuracy = %s'%accuracy)
 
-train()
+def sigmoidShow():
+    x = np.arange(-10.0, 10.0, 0.1)
+    y = sigmoid(x)
+    plt.figure()
+    plt.scatter(x, y)
+    drawt.pltBeautify((-10, 10), (0, 1), 'X', 'sigmoid(X)')
+    plt.show()
+
+def reluShow():
+    x = np.arange(-10.0, 10.0, 0.1)
+    y = relu(x)
+    plt.figure()
+    plt.scatter(x, y)
+    drawt.pltBeautify((-10, 10), (0, 10), 'X', 'relu(X)')
+    plt.show()
+
+#train()
+reluShow()
